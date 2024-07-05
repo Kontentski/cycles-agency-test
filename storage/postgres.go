@@ -7,6 +7,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	"github.com/pressly/goose/v3"
 )
 
 var DB *pgxpool.Pool
@@ -30,4 +31,20 @@ func Init() {
 	}
 
 	DB = pool
+}
+
+func RunMigrations() {
+	dsn := os.Getenv("DATABASE_URL")
+	db, err := goose.OpenDBWithDriver("pgx", dsn)
+	if err != nil {
+		log.Fatalf("Could not open db: %v\n", err)
+	}
+
+	if err := goose.SetDialect("postgres"); err != nil {
+		log.Fatalf("Could not set dialect: %v\n", err)
+	}
+
+	if err := goose.Up(db, "./migrations"); err != nil {
+		log.Fatalf("Could not run up migrations: %v\n", err)
+	}
 }

@@ -8,12 +8,11 @@ import (
 	"github.com/Kontentski/burgersDb/storage"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/pressly/goose/v3"
 )
 
 func main() {
 	storage.Init()
-	runMigrations()
+	storage.RunMigrations()
 
 	r := gin.Default()
 
@@ -25,6 +24,9 @@ func main() {
 	api.GET("/burgers/random", handlers.GetBurgerByRandom)
 	api.GET("/burgers/randomten", handlers.GetBurgersByRandom)
 	api.GET("/burgers/latest", handlers.GetLatestBurgers)
+	api.GET("/ingredients/:name", handlers.GetIngredientByName)
+	api.GET("/burgers/i=:name", handlers.GetBurgersByIngredientName)
+	api.GET("/burgers/ingredients", handlers.GetBurgersByIngredients)
 	api.POST("/burgers", handlers.CreateBurger)
 
 	port := os.Getenv("PORT")
@@ -33,20 +35,4 @@ func main() {
 	}
 
 	log.Fatal(r.Run(":" + port))
-}
-
-func runMigrations() {
-	dsn := os.Getenv("DATABASE_URL")
-	db, err := goose.OpenDBWithDriver("pgx", dsn)
-	if err != nil {
-		log.Fatalf("Could not open db: %v\n", err)
-	}
-
-	if err := goose.SetDialect("postgres"); err != nil {
-		log.Fatalf("Could not set dialect: %v\n", err)
-	}
-
-	if err := goose.Up(db, "./migrations"); err != nil {
-		log.Fatalf("Could not run up migrations: %v\n", err)
-	}
 }
