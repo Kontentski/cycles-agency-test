@@ -15,6 +15,7 @@ func main() {
 	storage.RunMigrations()
 
 	r := gin.Default()
+	r.Static("/api/assets", "./public/assets")
 
 	api := r.Group("api/")
 	api.GET("/burgers", handlers.GetBurgers)
@@ -27,6 +28,8 @@ func main() {
 	api.GET("/ingredients/:name", handlers.GetIngredientByName)
 	api.GET("/burgers/i=:name", handlers.GetBurgersByIngredientName)
 	api.GET("/burgers/ingredients", handlers.GetBurgersByIngredients)
+	api.GET("/burgers/vegan", handlers.GetVeganBurgers)
+	api.GET("/burgers/nonvegan", handlers.GetNonVeganBurgers)
 	api.POST("/burgers", handlers.CreateBurger)
 
 	port := os.Getenv("PORT")

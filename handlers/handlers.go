@@ -31,8 +31,8 @@ func CreateBurger(c *gin.Context) {
 
 	// Insert the burger
 	err = tx.QueryRow(context.Background(),
-		"INSERT INTO burgers (name, description, image_url, updated_at) VALUES ($1, $2, $3, $4) RETURNING id",
-		burger.Name, burger.Description, burger.ImageURL, time.Now()).Scan(&burger.ID)
+		"INSERT INTO burgers (name, description, is_vegan, image_url, updated_at) VALUES ($1, $2, $3, $4) RETURNING id",
+		burger.Name, burger.Description, burger.IsVegan, burger.ImageURL, time.Now()).Scan(&burger.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to insert burger", "details": err.Error()})
 		return
@@ -71,8 +71,8 @@ func CreateBurger(c *gin.Context) {
 
 func GetBurgers(c *gin.Context) {
 	query := `
-        SELECT b.id, b.name, b.description, b.image_url, b.updated_at,
-               i.id AS ingredient_id, i.name AS ingredient_name, i.description AS ingredient_description, bi.measure AS measure
+        SELECT b.id, b.name, b.description, b.is_vegan, b.image_url, b.updated_at,
+            i.id AS ingredient_id, i.name AS ingredient_name, i.description AS ingredient_description, bi.measure AS measure
         FROM burgers b
         LEFT JOIN burger_ingredients bi ON b.id = bi.burger_id
         LEFT JOIN ingredients i ON bi.ingredient_id = i.id
@@ -90,7 +90,7 @@ func GetBurgers(c *gin.Context) {
 func GetBurgerById(c *gin.Context) {
 	id := c.Param("id")
 	query := `
-        SELECT b.id, b.name, b.description, b.image_url, b.updated_at,
+        SELECT b.id, b.name, b.description, b.is_vegan, b.image_url, b.updated_at,
             i.id AS ingredient_id, i.name AS ingredient_name, i.description AS ingredient_description, bi.measure AS measure
         FROM burgers b
         LEFT JOIN burger_ingredients bi ON b.id = bi.burger_id
@@ -115,7 +115,7 @@ func GetBurgerById(c *gin.Context) {
 func GetBurgerByName(c *gin.Context) {
 	name := c.Param("name")
 	query := `
-        SELECT b.id, b.name, b.description, b.image_url, b.updated_at,
+        SELECT b.id, b.name, b.description, b.is_vegan, b.image_url, b.updated_at,
     		i.id AS ingredient_id, i.name AS ingredient_name, i.description AS ingredient_description, bi.measure AS measure
         FROM burgers b
         LEFT JOIN burger_ingredients bi ON b.id = bi.burger_id
@@ -141,7 +141,7 @@ func GetBurgerByLetter(c *gin.Context) {
 	letter := strings.ToLower(string(name[0]))
 
 	query := `
-		SELECT b.id, b.name, b.description, b.image_url, b.updated_at,
+		SELECT b.id, b.name, b.description, b.is_vegan, b.image_url, b.updated_at,
 			i.id AS ingredient_id, i.name AS ingredient_name, i.description AS ingredient_description, bi.measure AS measure
 		FROM burgers b
 		LEFT JOIN burger_ingredients bi ON b.id = bi.burger_id
@@ -166,7 +166,7 @@ func GetBurgerByRandom(c *gin.Context) {
 			ORDER BY RANDOM()
 			LIMIT 1
 		)
-		SELECT b.id, b.name, b.description, b.image_url, b.updated_at,
+		SELECT b.id, b.name, b.description, b.is_vegan, b.image_url, b.updated_at,
 			i.id AS ingredient_id, i.name AS ingredient_name, i.description AS ingredient_description, bi.measure AS measure
 		FROM burgers b
 		LEFT JOIN burger_ingredients bi ON b.id = bi.burger_id
@@ -196,7 +196,7 @@ func GetBurgersByRandom(c *gin.Context) {
 			ORDER BY RANDOM()
 			LIMIT 10
 		)
-		SELECT b.id, b.name, b.description, b.image_url, b.updated_at,
+		SELECT b.id, b.name, b.description, b.is_vegan, b.image_url, b.updated_at,
 			i.id AS ingredient_id, i.name AS ingredient_name, i.description AS ingredient_description, bi.measure AS measure
 		FROM burgers b
 		LEFT JOIN burger_ingredients bi ON b.id = bi.burger_id
@@ -219,7 +219,6 @@ func GetBurgersByRandom(c *gin.Context) {
 }
 
 func GetLatestBurgers(c *gin.Context) {
-	// Query to fetch the latest 10 distinct burgers based on updated_at
 	query := `
 		WITH latest_burgers AS (
 			SELECT id
@@ -227,7 +226,7 @@ func GetLatestBurgers(c *gin.Context) {
 			ORDER BY updated_at DESC
 			LIMIT 10
 		)
-		SELECT b.id, b.name, b.description, b.image_url, b.updated_at,
+		SELECT b.id, b.name, b.description, b.is_vegan, b.image_url, b.updated_at,
 			i.id AS ingredient_id, i.name AS ingredient_name, i.description AS ingredient_description, bi.measure AS measure
 		FROM burgers b
 		LEFT JOIN burger_ingredients bi ON b.id = bi.burger_id
@@ -313,7 +312,7 @@ func GetBurgersByIngredientName(c *gin.Context) {
         WHERE LOWER(i.name) LIKE LOWER($1)
     `
 	fmt.Println("SQL Query:", query)
-	
+
 	rows, err := storage.DB.Query(context.Background(), query, ingredientName)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -377,7 +376,7 @@ func GetBurgersByIngredients(c *gin.Context) {
 	WHERE ` + whereClause + `
 	GROUP BY b.id, b.name, b.image_url
 	HAVING COUNT(DISTINCT i.id) = $` + strconv.Itoa(len(args)+1) + `
-`
+	`
 
 	// Add the number of ingredients to the arguments
 	args = append(args, len(ingredientNames))
@@ -419,7 +418,6 @@ func GetBurgersByIngredients(c *gin.Context) {
 	c.JSON(http.StatusOK, burgers)
 }
 
-
 func fetchBurgers(query string, args ...interface{}) ([]models.Burgers, error) {
 	var burgers []models.Burgers
 
@@ -432,11 +430,12 @@ func fetchBurgers(query string, args ...interface{}) ([]models.Burgers, error) {
 	for rows.Next() {
 		var burgerID int
 		var burgerName, burgerDesc, burgerImageURL string
+		var isVegan bool
 		var updatedAt time.Time
 		var ingredientID sql.NullInt64
 		var ingredientName, ingredientDesc, measure sql.NullString
 
-		err := rows.Scan(&burgerID, &burgerName, &burgerDesc, &burgerImageURL, &updatedAt,
+		err := rows.Scan(&burgerID, &burgerName, &burgerDesc, &isVegan, &burgerImageURL, &updatedAt,
 			&ingredientID, &ingredientName, &ingredientDesc, &measure)
 		if err != nil {
 			return nil, err
@@ -466,6 +465,7 @@ func fetchBurgers(query string, args ...interface{}) ([]models.Burgers, error) {
 				ID:          burgerID,
 				Name:        burgerName,
 				Description: burgerDesc,
+				IsVegan:     isVegan,
 				ImageURL:    burgerImageURL,
 				UpdatedAt:   updatedAt,
 				Ingredients: []models.Ingredients{},
@@ -486,4 +486,56 @@ func fetchBurgers(query string, args ...interface{}) ([]models.Burgers, error) {
 	}
 
 	return burgers, nil
+}
+
+func GetBurgersByVeganStatus(c *gin.Context, isVegan bool) {
+	query := `
+        SELECT b.id, b.name, b.image_url
+        FROM burgers b
+        WHERE b.is_vegan = $1
+    `
+
+	rows, err := storage.DB.Query(context.Background(), query, isVegan)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	var burgers []gin.H
+	for rows.Next() {
+		var burgerID int
+		var burgerName, imageURL string
+		err := rows.Scan(&burgerID, &burgerName, &imageURL)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		burger := gin.H{
+			"id":        burgerID,
+			"name":      burgerName,
+			"image_url": imageURL,
+		}
+		burgers = append(burgers, burger)
+	}
+
+	if len(burgers) == 0 {
+		if isVegan {
+			c.JSON(http.StatusNotFound, gin.H{"error": "no vegan burgers found"})
+		} else {
+			c.JSON(http.StatusNotFound, gin.H{"error": "no non-vegan burgers found"})
+		}
+		return
+	}
+
+	c.JSON(http.StatusOK, burgers)
+}
+
+func GetVeganBurgers(c *gin.Context) {
+	GetBurgersByVeganStatus(c, true)
+}
+
+func GetNonVeganBurgers(c *gin.Context) {
+	GetBurgersByVeganStatus(c, false)
 }
