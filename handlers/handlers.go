@@ -28,13 +28,15 @@ func CreateBurger(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		log.Println("Error binding JSON:", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
 
 	tx, err := storage.DB.Begin(context.Background())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("Error starting transaction:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
 	defer tx.Rollback(context.Background())
@@ -45,7 +47,8 @@ func CreateBurger(c *gin.Context) {
 		VALUES ($1, $2, $3, $4, $5) RETURNING id`,
 		req.Burger.Name, req.Burger.Description, req.Burger.IsVegan, req.Burger.ImageURL, time.Now()).Scan(&burgerID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("Error inserting burger:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create burger"})
 		return
 	}
 
@@ -64,11 +67,13 @@ func CreateBurger(c *gin.Context) {
 					`INSERT INTO ingredients (name, description) VALUES ($1, $2) RETURNING id`,
 					ingredient.Name, ingredient.Description).Scan(&ingredientID)
 				if err != nil {
-					c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+					log.Println("Error inserting ingredient:", err)
+					c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add ingredient"})
 					return
 				}
 			} else {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+				log.Println("Error checking ingredient existence:", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check ingredient"})
 				return
 			}
 		}
@@ -79,6 +84,7 @@ func CreateBurger(c *gin.Context) {
 	for _, bi := range req.BurgerIngredients {
 		ingredientID, ok := ingredientIDMap[bi.IngredientName]
 		if !ok {
+			log.Println("Ingredient not found in map:", bi.IngredientName)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Ingredient not found"})
 			return
 		}
@@ -87,16 +93,17 @@ func CreateBurger(c *gin.Context) {
 			`INSERT INTO burger_ingredients (burger_id, ingredient_id, measure) VALUES ($1, $2, $3)`,
 			burgerID, ingredientID, bi.Measure)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-
-			log.Printf("%d, %d, %s", burgerID, ingredientID, bi.Measure)
+			log.Println("Error inserting burger ingredient:", err)
+			log.Printf("burger_id: %d, ingredient_id: %d, measure: %s", burgerID, ingredientID, bi.Measure)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add burger ingredient"})
 			return
 		}
 	}
 
 	err = tx.Commit(context.Background())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("Error committing transaction:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to finalize burger creation"})
 		return
 	}
 
@@ -106,7 +113,8 @@ func CreateBurger(c *gin.Context) {
 func GetBurgers(c *gin.Context) {
 	burgers, err := fetchBurgers(queries.GetBurgers)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("Error fetching burgers:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch burgers"})
 		return
 	}
 
@@ -118,7 +126,8 @@ func GetBurgerById(c *gin.Context) {
 
 	burgers, err := fetchBurgers(queries.GetBurgerById, id)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("Error fetching burger by ID:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch burger"})
 		return
 	}
 
@@ -135,7 +144,9 @@ func GetBurgerByName(c *gin.Context) {
 
 	burgers, err := fetchBurgers(queries.GetBurgerByName, name)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("Error fetching burger by ID:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch burger"})
+
 		return
 	}
 
@@ -152,7 +163,8 @@ func GetBurgerByLetter(c *gin.Context) {
 
 	burgers, err := fetchBurgers(queries.GetBurgerByLetter, letter+"%")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("Error fetching burger by ID:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch burger"})
 		return
 	}
 
@@ -162,7 +174,8 @@ func GetBurgerByLetter(c *gin.Context) {
 func GetBurgerByRandom(c *gin.Context) {
 	burgers, err := fetchBurgers(queries.GetBurgerByRandom)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("Error fetching burger by ID:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch burger"})
 		return
 	}
 
@@ -177,7 +190,8 @@ func GetBurgerByRandom(c *gin.Context) {
 func GetBurgersByRandom(c *gin.Context) {
 	burgers, err := fetchBurgers(queries.GetBurgersByRandom)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("Error fetching burger by ID:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch burger"})
 		return
 	}
 
@@ -192,7 +206,8 @@ func GetBurgersByRandom(c *gin.Context) {
 func GetLatestBurgers(c *gin.Context) {
 	burgers, err := fetchBurgers(queries.GetLatestBurgers)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("Error fetching burger by ID:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch burger"})
 		return
 	}
 
@@ -214,10 +229,12 @@ func GetIngredientByName(c *gin.Context) {
 	)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{"error": "ingredient not found"})
+			log.Println("Ingredient not found:", ingredientName)
+			c.JSON(http.StatusNotFound, gin.H{"error": "Ingredient not found"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("Error fetching ingredient by name:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch ingredient"})
 		return
 	}
 
@@ -237,7 +254,8 @@ func GetIngredientByID(c *gin.Context) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "ingredient not found"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("Error fetching ingredient by ID:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch ingredient"})
 		return
 	}
 
@@ -250,7 +268,8 @@ func GetBurgersByIngredientName(c *gin.Context) {
 
 	rows, err := storage.DB.Query(context.Background(), queries.GetBurgersByIngredientName, ingredientName)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("Error fetching burgers by ingredient name:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch burgers"})
 		return
 	}
 	defer rows.Close()
@@ -261,7 +280,8 @@ func GetBurgersByIngredientName(c *gin.Context) {
 		var burgerID int
 		err := rows.Scan(&burgerName, &imageURL, &burgerID)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			log.Println("Error scanning row:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch burgers"})
 			return
 		}
 
@@ -318,7 +338,8 @@ func GetBurgersByIngredients(c *gin.Context) {
 
 	rows, err := storage.DB.Query(context.Background(), query, args...)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("Error querying burgers by ingredients:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch burgers"})
 		return
 	}
 	defer rows.Close()
@@ -329,7 +350,8 @@ func GetBurgersByIngredients(c *gin.Context) {
 		var burgerName, imageURL string
 		err := rows.Scan(&burgerID, &burgerName, &imageURL)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			log.Println("Error scanning row:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch burgers"})
 			return
 		}
 
@@ -380,12 +402,13 @@ func fetchBurgers(query string, args ...interface{}) ([]models.Burgers, error) {
 		for i := range burgers {
 			if burgers[i].ID == burgerID {
 				if ingredientID.Valid {
-					ingredient := models.Ingredients{
-						IngredientID: int(ingredientID.Int64),
-						Name:         ingredientName.String,
-						Description:  ingredientDesc.String,
+					burgerIngredient := models.BurgerIngredients{
+						BurgerID:       burgerID,
+						IngredientID:   int(ingredientID.Int64),
+						IngredientName: ingredientName.String,
+						Measure:        measure.String,
 					}
-					burgers[i].Ingredients = append(burgers[i].Ingredients, ingredient)
+					burgers[i].BurgerIngredients = append(burgers[i].BurgerIngredients, burgerIngredient)
 				}
 				found = true
 				break
@@ -394,21 +417,22 @@ func fetchBurgers(query string, args ...interface{}) ([]models.Burgers, error) {
 
 		if !found {
 			burger := models.Burgers{
-				ID:          burgerID,
-				Name:        burgerName,
-				Description: burgerDesc,
-				IsVegan:     isVegan,
-				ImageURL:    fullImageURL,
-				UpdatedAt:   updatedAt,
-				Ingredients: []models.Ingredients{},
+				ID:                burgerID,
+				Name:              burgerName,
+				Description:       burgerDesc,
+				IsVegan:           isVegan,
+				ImageURL:          fullImageURL,
+				UpdatedAt:         updatedAt,
+				BurgerIngredients: []models.BurgerIngredients{},
 			}
 			if ingredientID.Valid {
-				ingredient := models.Ingredients{
-					IngredientID: int(ingredientID.Int64),
-					Name:         ingredientName.String,
-					Description:  ingredientDesc.String,
+				burgerIngredient := models.BurgerIngredients{
+					BurgerID:       burgerID,
+					IngredientID:   int(ingredientID.Int64),
+					IngredientName: ingredientName.String,
+					Measure:        measure.String,
 				}
-				burger.Ingredients = append(burger.Ingredients, ingredient)
+				burger.BurgerIngredients = append(burger.BurgerIngredients, burgerIngredient)
 			}
 			burgers = append(burgers, burger)
 		}
@@ -420,7 +444,8 @@ func fetchBurgers(query string, args ...interface{}) ([]models.Burgers, error) {
 func GetBurgersByVeganStatus(c *gin.Context, isVegan bool) {
 	rows, err := storage.DB.Query(context.Background(), queries.GetBurgersByVeganStatus, isVegan)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		log.Println("Error querying burgers by vegan status:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch burgers"})
 		return
 	}
 	defer rows.Close()
@@ -431,7 +456,8 @@ func GetBurgersByVeganStatus(c *gin.Context, isVegan bool) {
 		var burgerName, imageURL string
 		err := rows.Scan(&burgerID, &burgerName, &imageURL)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			log.Println("Error scanning row:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch burgers"})
 			return
 		}
 

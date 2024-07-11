@@ -3,8 +3,10 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"github.com/Kontentski/burgersDb/handlers"
+	"github.com/Kontentski/burgersDb/middleware"
 	"github.com/Kontentski/burgersDb/storage"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -14,7 +16,13 @@ func main() {
 	storage.Init()
 	storage.RunMigrations()
 
+	middleware.InitializeCache(5*time.Minute, 10*time.Minute)
+
 	r := gin.Default()
+
+	r.Use(middleware.RateLimiter())
+	r.Use(middleware.CacheResponse())
+
 	r.Static("/api/assets", "./public/assets")
 
 	api := r.Group("api/")
