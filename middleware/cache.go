@@ -19,7 +19,7 @@ func InitializeCache(defaultExpiration, cleanupInterval time.Duration) {
 func CacheResponse() gin.HandlerFunc {
     return func(ctx *gin.Context) {
         // Check if the cache is initialized
-        if c == nil {
+        if ctx.Request.Method == "POST" {
             log.Println("Cache is not initialized")
             ctx.Next()
             return

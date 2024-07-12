@@ -38,7 +38,7 @@ func main() {
 	api.GET("/burgers/ingredients", handlers.GetBurgersByIngredients)
 	api.GET("/burgers/vegan", handlers.GetVeganBurgers)
 	api.GET("/burgers/nonvegan", handlers.GetNonVeganBurgers)
-	api.POST("/burgers", handlers.CreateBurger)
+	api.POST("/burgers/create", handlers.CreateBurger)
 
 	port := os.Getenv("PORT")
 	if port == "" {
