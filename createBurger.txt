@@ -1,0 +1,30 @@
+//this is the json structure to create a burger
+
+{
+  "burger": {
+    "name": "Classic burger with rocks3.0",
+    "description": "A delicious classic rockburger",
+    "is_vegan": false,
+    "image_url": "assets/rockburger.jpg"
+  },
+  "ingredients": [
+    {
+      "name": "rock",
+      "description": "Juicy rock patty"
+    },
+    {
+      "name": "boulder",
+      "description": "Melty boulder slice"
+    }
+  ],
+  "burgerIngredients": [
+    {
+      "ingredient_name": "rock",
+      "measure": "200g"
+    },
+    {
+      "ingredient_name": "boulder",
+      "measure": "2 slices"
+    }
+  ]
+}
